@@ -54,7 +54,7 @@ variables:
   blocking_entity: !input blocking_entity
   climate_target: !input climate_entity
   climate_id: '{{ state_attr( climate_target, "id") }}'
-  open_delay: !input open_delay
+  open_delay: !input open_delay 
 
 trigger:
   - platform: state
@@ -72,7 +72,8 @@ action:
       address: "{{ climate_id }}"
       channel: 1
       param: "WINDOW_STATE"
-      value: 1
+      value: "1"
+      value_type: int
 
   - wait_for_trigger:
       - platform: state
@@ -85,7 +86,8 @@ action:
       address: "{{ climate_id }}"
       channel: 1
       param: "WINDOW_STATE"
-      value: 0
+      value: "0"
+      value_type: int
 
 mode: restart
 max_exceeded: silent
