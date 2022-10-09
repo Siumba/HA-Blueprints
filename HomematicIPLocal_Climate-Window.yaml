@@ -71,7 +71,7 @@ action:
     data:
       device_id: "{{ device_id(climate_target)}}"
       channel: 1
-      param: WINDOW_STATE
+      parameter: WINDOW_STATE
       value: "1"
       value_type: int
 
@@ -85,7 +85,7 @@ action:
     data:
       device_id: "{{ device_id(climate_target) }}"
       channel: 1
-      param: WINDOW_STATE
+      parameter: WINDOW_STATE
       value: "0"
       value_type: int
 
