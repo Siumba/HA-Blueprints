@@ -69,7 +69,7 @@ condition:
 action:
   - service: homematicip_local.set_device_value
     data:
-      address: "{{ climate_id }}"
+      device_id: "{{ climate_id }}"
       channel: 1
       param: WINDOW_STATE
       value: "1"
@@ -83,7 +83,7 @@ action:
 
   - service: homematicip_local.set_device_value
     data:
-      address: "{{ climate_id }}"
+      device_id: "{{ climate_id }}"
       channel: 1
       param: WINDOW_STATE
       value: "0"
