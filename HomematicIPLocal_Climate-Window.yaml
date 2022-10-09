@@ -71,7 +71,7 @@ action:
     data:
       address: "{{ climate_id }}"
       channel: 1
-      param: "WINDOW_STATE"
+      param: WINDOW_STATE
       value: "1"
       value_type: int
 
@@ -85,7 +85,7 @@ action:
     data:
       address: "{{ climate_id }}"
       channel: 1
-      param: "WINDOW_STATE"
+      param: WINDOW_STATE
       value: "0"
       value_type: int
 
