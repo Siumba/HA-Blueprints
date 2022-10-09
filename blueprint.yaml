@@ -1,241 +1,91 @@
 blueprint:
-  name: Window open, climate off after a defined time
-  description: 'Climate device like heating and cooling devices (if active) are turned
-    off and go back to the previous set stage after the windows is closed again. Now
-    it supports several heating modes and different vendors like Tado. The supported
-    HAVC modes are: automatic, auto, heat, heat_cool and off. If you need more please
-    let me know. Happy automating!'
+  name: Window Open, Notify HomeMatic CCU
+  description:
+    An automation blueprint that reduces the set temperature of your climate
+    device or group if a window sensor is open for more than the preset wait time.
+    It uses the Homematic window sensor channel to set the temperature to the "Open-window
+    temperature" set in the device configuration. You should set the "Mode for temperature
+    fall detection" to Inactive to avoid conflicts. It waits until the window is closed
+    again in order to restore the climate entity temperature. It has an optional blocking
+    entity to prevent the automation running unnecessarily, for example during the
+    Summer season.
+
   domain: automation
+
   input:
     window_entity:
       name: Window Sensor
-      description: The window sensor that controls the climate entity. If you have
-        more window sensors please make a group sensor.
+      description: The window sensor that will control the climate entity.
       selector:
         entity:
           domain: binary_sensor
           device_class: window
-          multiple: false
-    minimum_open_time:
-      name: Miniumum open time
-      description: Time in seconds to wait until the automation is triggered
-      default: 12
+
+    open_delay:
+      name: Windows Open Wait Time
+      description: Time to delay after window opens before notifying HomeMatic.
+      default: 30
       selector:
         number:
           min: 0.0
-          max: 120.0
+          max: 600.0
           unit_of_measurement: seconds
           mode: slider
           step: 1.0
-    climate_target:
+
+    blocking_entity:
+      name: (OPTIONAL) Blocking Entity
+      description: If this entity's state is on, it will prevent the automation from running. E.g. summer mode or away mode.
+      default:
+      selector:
+        entity:
+          domain: input_boolean
+
+    climate_entity:
       name: Climate Device
       description: The climate entity that is controlled by the window sensor.
       selector:
         entity:
           domain: climate
-          multiple: false
-###          
-    open_action:
-      name: Additional Open Action (Optional)
-      description: "Action to perform if the door/window sensor is opened (e.g. open blind, tts announcement)"
-      default: []
-      selector:
-        action:
-    close_action:
-      name: Additional Close Action (Optional)
-      description: "Action to perform if the door/window sensor is cloed again (e.g. close blind, tts announcement)"
-      default: []
-      selector:
-        action:
+
+  source_url: https://gist.github.com/sotatech/500b53ee64ca5ad5299c22cde47407ed
 
 variables:
-  open_action: !input open_action
-  close_action: !input close_action
+  blocking_entity: !input blocking_entity
+  climate_target: !input climate_entity
+  climate_id: '{{ state_attr( climate_target, "id") }}'
+  open_delay: !input open_delay
 
-###
-
-
-
-  source_url: https://community.home-assistant.io/t/window-open-climate-off/257293
-mode: single
 trigger:
-- platform: state
-  entity_id: !input 'window_entity'
-  to: 'on'
-  for: !input 'minimum_open_time'
+  - platform: state
+    entity_id: !input "window_entity"
+    to: "on"
+    for: !input "open_delay"
+
 condition:
-- condition: not
-  conditions:
-  - condition: state
-    entity_id: !input 'climate_target'
-    state: 'off'
+  - condition: template
+    value_template: "{{ (blocking_entity == none) or (states[blocking_entity].state == 'off') }}"
+
 action:
-- choose:
-  - conditions:
-    - condition: state
-      entity_id: !input 'climate_target'
-      state: cool
-    sequence: 
-    - service: climate.turn_off
-      target:
-        entity_id: !input 'climate_target'
-    - choose:
-      - conditions: "{{ open_action is defined and open_action|length > 0 }}"
-        sequence: !input open_action
-    - wait_for_trigger:
+  - service: homematicip_local.set_device_value
+    data:
+      address: "{{ climate_id }}"
+      channel: 1
+      param: "WINDOW_STATE"
+      value: 1
+
+  - wait_for_trigger:
       - platform: state
-        entity_id: !input 'window_entity'
-        to: 'off'
-      continue_on_timeout: false
-    - choose:
-      - conditions: "{{ close_action is defined and close_action|length > 0 }}"
-        sequence: !input close_action
-    - service: climate.set_hvac_mode
-      target:
-        entity_id: !input 'climate_target'
-      data:
-        hvac_mode: cool
-  - conditions:
-    - condition: state
-      entity_id: !input 'climate_target'
-      state: heat_cool
-    sequence:
-    - service: climate.turn_off
-      target:
-        entity_id: !input 'climate_target'
-    - choose:
-      - conditions: "{{ open_action is defined and open_action|length > 0 }}"
-        sequence: !input open_action
-    - wait_for_trigger:
-      - platform: state
-        entity_id: !input 'window_entity'
-        to: 'off'
-      continue_on_timeout: false
-    - choose:
-      - conditions: "{{ close_action is defined and close_action|length > 0 }}"
-        sequence: !input close_action
-    - service: climate.set_hvac_mode
-      target:
-        entity_id: !input 'climate_target'
-      data:
-        hvac_mode: heat_cool
-  - conditions:
-    - condition: state
-      entity_id: !input 'climate_target'
-      state: heat
-    sequence:
-    - service: climate.turn_off
-      target:
-        entity_id: !input 'climate_target'
-    - choose:
-      - conditions: "{{ open_action is defined and open_action|length > 0 }}"
-        sequence: !input open_action
-    - wait_for_trigger:
-      - platform: state
-        entity_id: !input 'window_entity'
-        to: 'off'
-      continue_on_timeout: false
-    - choose:
-      - conditions: "{{ close_action is defined and close_action|length > 0 }}"
-        sequence: !input close_action
-    - service: climate.set_hvac_mode
-      data:
-        hvac_mode: heat
-      target:
-        entity_id: !input 'climate_target'
-  - conditions:
-    - condition: state
-      entity_id: !input 'climate_target'
-      state: automatic
-    sequence:
-    - service: climate.turn_off
-      target:
-        entity_id: !input 'climate_target'
-    - choose:
-      - conditions: "{{ open_action is defined and open_action|length > 0 }}"
-        sequence: !input open_action
-    - wait_for_trigger:
-      - platform: state
-        entity_id: !input 'window_entity'
-        to: 'off'
-      continue_on_timeout: false
-    - choose:
-      - conditions: "{{ close_action is defined and close_action|length > 0 }}"
-        sequence: !input close_action
-    - service: climate.set_hvac_mode
-      data:
-        hvac_mode: automatic
-      target:
-        entity_id: !input 'climate_target'
-  - conditions:
-    - condition: state
-      entity_id: !input 'climate_target'
-      state: auto
-    sequence:
-    - service: climate.turn_off
-      target:
-        entity_id: !input 'climate_target'
-    - choose:
-      - conditions: "{{ open_action is defined and open_action|length > 0 }}"
-        sequence: !input open_action
-    - wait_for_trigger:
-      - platform: state
-        entity_id: !input 'window_entity'
-        to: 'off'
-      continue_on_timeout: false
-    - choose:
-      - conditions: "{{ close_action is defined and close_action|length > 0 }}"
-        sequence: !input close_action
-    - service: climate.set_hvac_mode
-      data:
-        hvac_mode: auto
-      target:
-        entity_id: !input 'climate_target'
-  - conditions:
-    - condition: state
-      entity_id: !input 'climate_target'
-      state: dry
-    sequence:
-    - service: climate.turn_off
-      target:
-        entity_id: !input 'climate_target'
-    - choose:
-      - conditions: "{{ open_action is defined and open_action|length > 0 }}"
-        sequence: !input open_action
-    - wait_for_trigger:
-      - platform: state
-        entity_id: !input 'window_entity'
-        to: 'off'
-      continue_on_timeout: false
-    - choose:
-      - conditions: "{{ close_action is defined and close_action|length > 0 }}"
-        sequence: !input close_action
-    - service: climate.set_hvac_mode
-      data:
-        hvac_mode: dry
-      target:
-        entity_id: !input 'climate_target'
-  - conditions:
-    - condition: state
-      entity_id: !input 'climate_target'
-      state: fan_only
-    sequence:
-    - service: climate.turn_off
-      target:
-        entity_id: !input 'climate_target'
-    - choose:
-      - conditions: "{{ open_action is defined and open_action|length > 0 }}"
-        sequence: !input open_action
-    - wait_for_trigger:
-      - platform: state
-        entity_id: !input 'window_entity'
-        to: 'off'
-      continue_on_timeout: false
-    - choose:
-      - conditions: "{{ close_action is defined and close_action|length > 0 }}"
-        sequence: !input close_action
-    - service: climate.set_hvac_mode
-      data:
-        hvac_mode: fan_only
-      target:
-        entity_id: !input 'climate_target'
+        entity_id: !input "window_entity"
+        to: "off"
+    continue_on_timeout: false
+
+  - service: homematicip_local.set_device_value
+    data:
+      address: "{{ climate_id }}"
+      channel: 1
+      param: "WINDOW_STATE"
+      value: 0
+
+mode: restart
+max_exceeded: silent
