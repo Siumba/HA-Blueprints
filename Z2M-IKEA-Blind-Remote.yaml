@@ -30,6 +30,12 @@ action:
   - choose:
       - conditions:
           - condition: template
+            value_template: "{{ command == 'stop' }}"
+        sequence:
+          - service: cover.stop_cover
+            target: !input cover
+      - conditions:
+          - condition: template
             value_template: "{{ command == 'open' }}"
         sequence:
           - service: cover.open_cover
